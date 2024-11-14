@@ -28,46 +28,85 @@ def consulta_graphql(query):
     return tempo_resposta, tamanho_resposta
 
 # Definição das consultas
-url_rest = "https://api.github.com/repos/octocat/hello-world"  # Exemplo de URL REST
-query_graphql = """
+# 1. Simples
+url_rest_simples = "https://api.github.com/repos/octocat/hello-world"  # REST simples
+query_graphql_simples = """
 {
   repository(owner: "octocat", name: "hello-world") {
     name
     description
-    owner {
-      login
+  }
+}
+"""
+
+# 2. Complexa
+url_rest_complexa = "https://api.github.com/repos/octocat/hello-world/contributors"  # REST complexa
+query_graphql_complexa = """
+{
+  repository(owner: "octocat", name: "hello-world") {
+    name
+    description
+    collaborators(first: 10) {
+      nodes {
+        login
+      }
     }
   }
 }
 """
 
-# Coleta de dados para múltiplas execuções
-repeticoes = 15
-resultados_rest = []
-resultados_graphql = []
+# 3. Agregação
+url_rest_aggregacao = "https://api.github.com/repos/octocat/hello-world/issues?state=all"  # REST agregação
+query_graphql_aggregacao = """
+{
+  repository(owner: "octocat", name: "hello-world") {
+    issues {
+      totalCount
+    }
+    stargazers {
+      totalCount
+    }
+    forks {
+      totalCount
+    }
+  }
+}
+"""
 
-# Executa a consulta REST
-for _ in range(repeticoes):
-    tempo, tamanho = consulta_rest(url_rest)
-    resultados_rest.append((tempo, tamanho))
+# Função para executar as medições
+def realizar_testes(url_rest, query_graphql, repeticoes=15):
+    resultados_rest = []
+    resultados_graphql = []
 
-# Executa a consulta GraphQL
-for _ in range(repeticoes):
-    tempo, tamanho = consulta_graphql(query_graphql)
-    resultados_graphql.append((tempo, tamanho))
+    # Executa a consulta REST
+    for _ in range(repeticoes):
+        tempo, tamanho = consulta_rest(url_rest)
+        resultados_rest.append((tempo, tamanho))
 
-# Exibe os resultados
-print("Resultados REST:", resultados_rest)
-print("Resultados GraphQL:", resultados_graphql)
+    # Executa a consulta GraphQL
+    for _ in range(repeticoes):
+        tempo, tamanho = consulta_graphql(query_graphql)
+        resultados_graphql.append((tempo, tamanho))
 
-# Cálculo da média e análise estatística
-media_tempo_rest = sum([r[0] for r in resultados_rest]) / repeticoes
-media_tamanho_rest = sum([r[1] for r in resultados_rest]) / repeticoes
+    return resultados_rest, resultados_graphql
 
-media_tempo_graphql = sum([r[0] for r in resultados_graphql]) / repeticoes
-media_tamanho_graphql = sum([r[1] for r in resultados_graphql]) / repeticoes
+# Executando para cada tipo de consulta
+resultados_simples_rest, resultados_simples_graphql = realizar_testes(url_rest_simples, query_graphql_simples)
+resultados_complexa_rest, resultados_complexa_graphql = realizar_testes(url_rest_complexa, query_graphql_complexa)
+resultados_aggregacao_rest, resultados_aggregacao_graphql = realizar_testes(url_rest_aggregacao, query_graphql_aggregacao)
 
-print(f"\nMédia Tempo REST: {media_tempo_rest:.2f} ms")
-print(f"Média Tamanho REST: {media_tamanho_rest / 1024:.2f} KB")
-print(f"Média Tempo GraphQL: {media_tempo_graphql:.2f} ms")
-print(f"Média Tamanho GraphQL: {media_tamanho_graphql / 1024:.2f} KB")
+# Função para calcular a média e exibir resultados
+def calcular_media(resultados):
+    media_tempo = sum([r[0] for r in resultados]) / len(resultados)
+    media_tamanho = sum([r[1] for r in resultados]) / len(resultados)
+    return media_tempo, media_tamanho
+
+# Exibe resultados
+print("Consulta Simples REST:", calcular_media(resultados_simples_rest))
+print("Consulta Simples GraphQL:", calcular_media(resultados_simples_graphql))
+
+print("Consulta Complexa REST:", calcular_media(resultados_complexa_rest))
+print("Consulta Complexa GraphQL:", calcular_media(resultados_complexa_graphql))
+
+print("Consulta Agregação REST:", calcular_media(resultados_aggregacao_rest))
+print("Consulta Agregação GraphQL:", calcular_media(resultados_aggregacao_graphql))
